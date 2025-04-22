@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>複数画像リサイザー (ピンク背景・正方形)</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: #888;
+            background-color: #f9f9f9;
+        }
+
+        .upload-area.active {
+            border-color: #4284fe;
+            background-color: #ffe5ee;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        button {
+            background-color: #4284fe;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #e73575;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .preview-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .image-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .image-item {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            width: 300px;
+            position: relative;
+        }
+
+        .image-item canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #eee;
+        }
+
+        .image-info {
+            font-size: 14px;
+            color: #666;
+            margin: 10px 0;
+        }
+
+        .download-single {
+            background-color: #4284fe;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        .download-all-container {
+            margin-top: 20px;
+        }
+
+        .instructions {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            height: 20px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: #4284fe;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            margin-top: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>複数画像リサイザー (800×1077 → 1100×1100)</h1>
+
+        <div class="instructions">
+            <p>このツールは、複数の画像を一括で処理し、元のサイズを維持したまま1100×1100にリサイズします。</p>
+            <p>使い方：</p>
+            <ol>
+                <li>下のエリアをクリックして画像を選択するか、画像をドラッグ＆ドロップします（複数選択可能）</li>
+                <li>各画像のプレビューを確認します</li>
+                <li>それぞれの画像の「ダウンロード」ボタンをクリックするか、「すべてダウンロード」で一括保存できます</li>
+            </ol>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <p>ここをクリックして画像を選択するか、画像をドラッグ＆ドロップしてください<br>(複数選択可能)</p>
+            <input type="file" id="fileInput" accept="image/*" multiple>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">処理中: 0/0</div>
+        </div>
+
+        <div class="preview-container" id="previewContainer">
+            <div class="image-list" id="imageList"></div>
+
+            <div class="download-all-container">
+                <button id="downloadAllBtn" disabled>すべてダウンロード</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const previewContainer = document.getElementById('previewContainer');
+            const imageList = document.getElementById('imageList');
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+
+            // 背景色の設定
+            const backgroundColor = "#FFFFFF";
+
+            // 新しいサイズの設定
+            const targetWidth = 1100;
+            const targetHeight = 1100;
+
+            // 処理済み画像を格納する配列
+            let processedImages = [];
+
+            // ファイル選択イベント
+            uploadArea.addEventListener('click', function () {
+                fileInput.click();
+            });
+
+            // ドラッグ＆ドロップの設定
+            uploadArea.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                uploadArea.classList.add('active');
+            });
+
+            uploadArea.addEventListener('dragleave', function () {
+                uploadArea.classList.remove('active');
+            });
+
+            uploadArea.addEventListener('drop', function (e) {
+                e.preventDefault();
+                uploadArea.classList.remove('active');
+
+                if (e.dataTransfer.files.length) {
+                    handleFiles(e.dataTransfer.files);
+                }
+            });
+
+            fileInput.addEventListener('change', function () {
+                if (fileInput.files.length) {
+                    handleFiles(fileInput.files);
+                }
+            });
+
+            // 複数ファイル処理
+            function handleFiles(files) {
+                // 既存の処理をクリア
+                processedImages = [];
+                downloadAllBtn.disabled = true;
+
+                // プログレスバーの初期化
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                progressText.textContent = `処理中: 0/${files.length}`;
+
+                // 画像プレビューエリアをクリア
+                imageList.innerHTML = '';
+
+                let processed = 0;
+
+                // 各ファイルを処理
+                Array.from(files).forEach((file, index) => {
+                    if (!file.type.match('image.*')) {
+                        processed++;
+                        updateProgress(processed, files.length);
+                        return;
+                    }
+
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        const img = new Image();
+                        img.onload = function () {
+                            // 画像を処理して表示
+                            const imageItem = createImageItem(img, file.name, index);
+                            imageList.appendChild(imageItem);
+
+                            // 処理カウントを更新
+                            processed++;
+                            updateProgress(processed, files.length);
+
+                            // すべて処理完了したらプレビュー表示
+                            if (processed === files.length) {
+                                previewContainer.style.display = 'block';
+                                if (processedImages.length > 0) {
+                                    downloadAllBtn.disabled = false;
+                                }
+                            }
+                        };
+                        img.src = e.target.result;
+                    };
+
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            // プログレスバーの更新
+            function updateProgress(current, total) {
+                const percentage = (current / total) * 100;
+                progressBar.style.width = percentage + '%';
+                progressText.textContent = `処理中: ${current}/${total}`;
+
+                if (current === total) {
+                    // 少し待ってからプログレスバーを非表示
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                    }, 1000);
+                }
+            }
+
+            // 個別の画像アイテムを作成
+            function createImageItem(img, filename, index) {
+                const item = document.createElement('div');
+                item.className = 'image-item';
+                item.dataset.index = index;
+
+                // 画像名から拡張子を取得
+                const extension = filename.split('.').pop().toLowerCase();
+                const baseName = filename.substring(0, filename.lastIndexOf('.'));
+
+                // キャンバスの作成と描画
+                const canvas = document.createElement('canvas');
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const ctx = canvas.getContext('2d');
+
+                // キャンバスを指定色で塗りつぶし
+                ctx.fillStyle = backgroundColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 画像を中央に配置（800×1077に合わせて調整）
+                const scale = Math.min(800 / img.width, 1077 / img.height);
+                const newWidth = img.width * scale;
+                const newHeight = img.height * scale;
+
+                const x = (targetWidth - newWidth) / 2;
+                const y = (targetHeight - newHeight) / 2;
+
+                ctx.drawImage(img, x, y, newWidth, newHeight);
+
+                // 処理済み画像をデータとして保存
+                processedImages.push({
+                    canvas: canvas,
+                    filename: `resized_${baseName}.png`,
+                    originalSize: `${img.width}×${img.height}`
+                });
+
+                // 画像情報の表示
+                const imageInfo = document.createElement('div');
+                imageInfo.className = 'image-info';
+                imageInfo.innerHTML = `
+                    ファイル名: ${filename}<br>
+                    元のサイズ: ${img.width}×${img.height} px<br>
+                    新しいサイズ: ${targetWidth}×${targetHeight} px
+                `;
+
+                // 個別ダウンロードボタン
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'download-single';
+                downloadBtn.textContent = 'ダウンロード';
+                downloadBtn.addEventListener('click', function () {
+                    downloadImage(index);
+                });
+
+                // 削除ボタン
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.textContent = '×';
+                removeBtn.title = '削除';
+                removeBtn.addEventListener('click', function () {
+                    removeImage(item, index);
+                });
+
+                // アイテムに要素を追加
+                item.appendChild(canvas);
+                item.appendChild(imageInfo);
+                item.appendChild(downloadBtn);
+                item.appendChild(removeBtn);
+
+                return item;
+            }
+
+            // 個別画像のダウンロード
+            function downloadImage(index) {
+                const imageData = processedImages[index];
+                const link = document.createElement('a');
+                link.download = imageData.filename;
+                link.href = imageData.canvas.toDataURL('image/png');
+                link.click();
+            }
+
+            // 画像の削除
+            function removeImage(item, index) {
+                imageList.removeChild(item);
+                processedImages.splice(index, 1);
+
+                // インデックスの更新
+                document.querySelectorAll('.image-item').forEach((item, i) => {
+                    item.dataset.index = i;
+                });
+
+                // ダウンロードボタンの状態更新
+                if (processedImages.length === 0) {
+                    downloadAllBtn.disabled = true;
+                    previewContainer.style.display = 'none';
+                }
+            }
+
+            // すべての画像をダウンロード
+            downloadAllBtn.addEventListener('click', function () {
+                if (processedImages.length === 0) return;
+
+                // 一つずつダウンロード（少し遅延をつけて連続ダウンロードを可能に）
+                processedImages.forEach((imageData, i) => {
+                    setTimeout(() => {
+                        const link = document.createElement('a');
+                        link.download = imageData.filename;
+                        link.href = imageData.canvas.toDataURL('image/png');
+                        link.click();
+                    }, i * 300);
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>
