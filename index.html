@@ -170,10 +170,10 @@
 
 <body>
     <div class="container">
-        <h1>複数画像リサイザー (800×1077 → 1100×1100)</h1>
+        <h1>複数画像リサイザー (800×1130 → 1130×1130)</h1>
 
         <div class="instructions">
-            <p>このツールは、複数の画像を一括で処理し、元のサイズを維持したまま1100×1100にリサイズします。</p>
+            <p>このツールは、複数の画像を一括で処理し、元のサイズを維持したまま1130×1130にリサイズします。</p>
             <p>使い方：</p>
             <ol>
                 <li>下のエリアをクリックして画像を選択するか、画像をドラッグ＆ドロップします（複数選択可能）</li>
@@ -218,8 +218,8 @@
             const backgroundColor = "#FFFFFF";
 
             // 新しいサイズの設定
-            const targetWidth = 1100;
-            const targetHeight = 1100;
+            const targetWidth = 1130;
+            const targetHeight = 1130;
 
             // 処理済み画像を格納する配列
             let processedImages = [];
@@ -341,7 +341,7 @@
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 // 画像を中央に配置（800×1077に合わせて調整）
-                const scale = Math.min(800 / img.width, 1077 / img.height);
+                const scale = Math.min(800 / img.width, 1130 / img.height);
                 const newWidth = img.width * scale;
                 const newHeight = img.height * scale;
 
